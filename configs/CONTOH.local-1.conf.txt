@@ -1,0 +1,15 @@
+# Contoh config WireGuard — GANTI dengan config asli dari server kamu
+# Cara pakai: copy file ini jadi local-1.conf / sg-1.conf di folder ini,
+# lalu isi PrivateKey, Address, PublicKey, Endpoint, PresharedKey dari provider/VPS.
+
+[Interface]
+PrivateKey = GANTI_PRIVATE_KEY_KAMU
+Address = 10.8.0.2/32
+DNS = 1.1.1.1
+
+[Peer]
+PublicKey = GANTI_PUBLIC_KEY_SERVER
+PresharedKey = GANTI_JIKA_ADA
+Endpoint = 203.0.113.10:51820
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 25

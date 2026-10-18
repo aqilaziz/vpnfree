@@ -1,0 +1,12 @@
+node_modules
+.next
+dist-electron
+dist-electron-v12
+# JANGAN commit private key WireGuard asli!
+configs/*.conf
+configs/*.key
+.vpn-state.json
+*.log
+.DS_Store
+Thumbs.db
+
