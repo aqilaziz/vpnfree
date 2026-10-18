@@ -1,30 +1,67 @@
-# VPN Next.js (Localhost Ready)
+# 🔒 VPN WireGuard Asli (Next.js + Electron) v1.2.0
 
-Aplikasi dashboard VPN dengan Next.js 14 App Router.
+Aplikasi VPN WireGuard **asli** (bukan simulasi) berbasis Next.js 14 + Electron.
+Tunnel dibuat di level OS via WireGuard, dashboard sebagai panel kontrol +
+bukti tunnel + IP publik live + ganti IP WARP tanpa matikan tunnel lokal.
 
-## Jawaban: apakah bisa pakai localhost?
-**Bisa untuk dashboard + backend kontrol**, tapi **browser/Next.js saja TIDAK bisa membuat tunnel VPN asli**.
-Tunnel VPN asli harus di level OS/server (WireGuard, OpenVPN, Xray, Outline).
+## Jalankan (versi biasa)
 
-Yang sudah dibuat di `D:\App\vpn-nextjs`:
-- Dashboard Connect/Disconnect, pilih server (termasuk 2 server localhost)
-- API: `/api/servers`, `/api/connect`, `/api/disconnect`, `/api/status`
-- Siap disambungkan ke WireGuard asli di localhost
-
-## Jalankan
 ```
 cd D:\App\vpn-nextjs
 npm install
 npm run dev
 ```
+
 Buka http://localhost:3001
 
-## Sambungkan ke VPN asli di localhost
-1. Install WireGuard di Windows + jalankan server / peer di localhost/VPS
-2. Edit `app/api/connect/route.ts`, ganti simulasi dengan `child_process` memanggil `wg-quick up ./configs/sg1.conf`
-3. Untuk production: pakai Outline / Xray di Docker, Next.js hanya sebagai panel.
+## Versi desktop (Electron, Windows)
+
+```
+npm run dist
+```
+
+Hasil: `dist-electron-v12\VPN-WireGuard-Asli-Setup-1.2.0.exe`
+Install di komputer Windows lain (tanpa Node.js). Jalankan **sebagai
+Administrator** agar Connect + Ganti IP berfungsi. Tiap komputer wajib punya
+`local-1.conf` sendiri (lihat `DISTRIBUSI.md`).
+
+## Syarat VPN asli
+
+1. Install WireGuard client: https://www.wireguard.com/install/
+2. Taruh file `local-1.conf` asli di folder `configs/` (atau
+   `%APPDATA%\VPN WireGuard Asli\configs` untuk versi EXE).
+   JANGAN commit file `*.conf` asli ke GitHub!
+3. Klik **Connect** di dashboard. Bukti sah: panel **🔍 Bukti Tunnel Asli**
+   (`wg show` + ping via tunnel) dan **🌐 IP Publik Live**.
+
+## 🔄 Cara ganti IP (WARP) — WAJIB login Cloudflare dulu!
+
+Berdasarkan pengalaman: tombol **🔄 Ganti IP (tanpa matikan tunnel)** di
+dashboard HANYA berhasil kalau aplikasi WARP sudah login ke akun Cloudflare.
+Tanpa login, IP yang dikembalikan sering sama terus.
+
+Langkahnya:
+
+1. Buka aplikasi **Cloudflare One Client / WARP**.
+2. Klik menu **Profile** (sidebar kiri).
+3. Di bagian **Cloudflare One team login**, klik **Login** dan selesaikan
+   login ke akun Cloudflare kamu (buat akun gratis bila belum punya).
+4. Pastikan status WARP **Connected**.
+5. Kembali ke dashboard VPN (`http://localhost:3001`), klik
+   **🔄 Ganti IP (tanpa matikan tunnel)**.
+6. Klik **Cek IP Sekarang** — IP harusnya berubah
+   (mis. `104.28.215.130` → `104.28.215.132`).
+7. Tunnel WireGuard lokal (`10.9.0.2`) TETAP terhubung — tidak perlu
+   Disconnect/Connect ulang.
+
+Catatan: IP baru kadang masih satu blok yang sama (mis. ujung `.130` ke
+`.132`). Itu normal untuk WARP gratis. Ulangi 2–3x untuk blok berbeda, atau
+reset registrasi WARP untuk identitas baru.
 
 Struktur:
-- `app/page.tsx` = UI
-- `lib/servers.ts` = daftar server
-- `app/api/*` = backend
+- `app/page.tsx` = UI (Connect, Bukti Tunnel, IP Live, Ganti IP)
+- `lib/servers.ts` = daftar server VPN asli
+- `lib/real-vpn.ts` = eksekusi WireGuard + WARP asli di OS
+- `app/api/*` = backend (connect, disconnect, status, servers, ip, proof, warp-reconnect)
+- `electron/main.js` = proses utama Electron (server otomatis + minta admin)
+
