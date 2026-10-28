@@ -8,7 +8,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('vpn-theme')||'system';var m=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';var r=t==='system'?m:t;document.documentElement.setAttribute('data-theme',r);}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

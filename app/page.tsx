@@ -10,6 +10,7 @@ type IpHistoryEntry = {
 };
 
 export default function Page() {
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [myIp, setMyIp] = useState<string | null>(null);
   const [ipInfo, setIpInfo] = useState<string | null>(null);
   const [ipCloudflare, setIpCloudflare] = useState(false);
@@ -18,6 +19,27 @@ export default function Page() {
   const [history, setHistory] = useState<IpHistoryEntry[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const lastIpRef = useRef<string | null>(null);
+
+  // Tema: load dari localStorage + terapkan ke <html>
+  useEffect(() => {
+    const saved = (localStorage.getItem("vpn-theme") as typeof theme) || "system";
+    setTheme(saved);
+    applyTheme(saved);
+    const mq = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = () => { if ((localStorage.getItem("vpn-theme") || "system") === "system") applyTheme("system"); };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const applyTheme = (t: typeof theme) => {
+    const m = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    const resolved = t === "system" ? m : t;
+    document.documentElement.setAttribute("data-theme", resolved);
+  };
+  const changeTheme = (t: typeof theme) => {
+    setTheme(t);
+    localStorage.setItem("vpn-theme", t);
+    applyTheme(t);
+  };
 
   // Tick tiap detik agar "x detik/menit lalu" live
   useEffect(() => {
@@ -34,7 +56,10 @@ export default function Page() {
   };
 
   const fmtAgo = (iso: string) => {
-    const diff = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
+    const diff = Math.max(
+      0,
+      Math.floor((now - new Date(iso).getTime()) / 1000),
+    );
     if (diff < 60) return `${diff} detik lalu`;
     if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
     if (diff < 86400) {
@@ -119,10 +144,21 @@ export default function Page() {
 
   return (
     <div className="container">
-      <h1>🔄 Ganti IP</h1>
-      <p>
-        <small>Ganti IP publik via Cloudflare WARP. Klik tombol untuk dapat IP baru.</small>
-      </p>
+      <div className="header-bar">
+        <div>
+          <h1 style={{ margin: 0 }}>🔄 Ganti IP</h1>
+          <p style={{ margin: "4px 0 0" }}>
+            <small>
+              Ganti IP publik via Cloudflare WARP. Klik tombol untuk dapat IP baru.
+            </small>
+          </p>
+        </div>
+        <div className="theme-toggle" title="Pilih tema">
+          <button className={theme === "light" ? "active" : ""} onClick={() => changeTheme("light")}>☀️ Light</button>
+          <button className={theme === "dark" ? "active" : ""} onClick={() => changeTheme("dark")}>🌙 Dark</button>
+          <button className={theme === "system" ? "active" : ""} onClick={() => changeTheme("system")}>💻 Sistem</button>
+        </div>
+      </div>
 
       <div className="layout">
         <div className="main">
@@ -157,7 +193,8 @@ export default function Page() {
             {history.length === 0 ? (
               <p>
                 <small>
-                  Belum ada riwayat. Klik <b>Cek IP</b> / <b>Ganti IP</b> untuk mulai mencatat.
+                  Belum ada riwayat. Klik <b>Cek IP</b> / <b>Ganti IP</b> untuk
+                  mulai mencatat.
                 </small>
               </p>
             ) : (
