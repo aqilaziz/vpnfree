@@ -133,6 +133,10 @@ small {
 .hist-time {
   font-size: 12px;
 }
+.hist-ago {
+  font-size: 11px;
+  color: #9aa5c7;
+}
 .hist-ok {
   background: #22c55e;
   color: #06130b;

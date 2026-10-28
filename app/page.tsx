@@ -16,7 +16,14 @@ export default function Page() {
   const [ipLoading, setIpLoading] = useState(false);
   const [warpLoading, setWarpLoading] = useState(false);
   const [history, setHistory] = useState<IpHistoryEntry[]>([]);
+  const [now, setNow] = useState(() => Date.now());
   const lastIpRef = useRef<string | null>(null);
+
+  // Tick tiap detik agar "x detik/menit lalu" live
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const fmtTime = (iso: string) => {
     const d = new Date(iso);
@@ -24,6 +31,19 @@ export default function Page() {
     const mm = String(d.getMinutes()).padStart(2, "0");
     const ss = String(d.getSeconds()).padStart(2, "0");
     return `${hh}:${mm}:${ss}`;
+  };
+
+  const fmtAgo = (iso: string) => {
+    const diff = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
+    if (diff < 60) return `${diff} detik lalu`;
+    if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
+    if (diff < 86400) {
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      return m ? `${h} jam ${m} menit lalu` : `${h} jam lalu`;
+    }
+    const d = Math.floor(diff / 86400);
+    return `${d} hari lalu`;
   };
 
   const recordHistory = async (
@@ -145,7 +165,10 @@ export default function Page() {
                 {[...history].reverse().map((h, i) => (
                   <div key={i} className="hist-item">
                     <div className="hist-head">
-                      <code className="hist-time">{fmtTime(h.time)}</code>
+                      <div>
+                        <code className="hist-time">{fmtTime(h.time)}</code>
+                        <small className="hist-ago"> · {fmtAgo(h.time)}</small>
+                      </div>
                       {h.changed ? (
                         <span className="badge hist-ok">✓ Berubah</span>
                       ) : (
