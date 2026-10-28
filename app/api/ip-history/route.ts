@@ -14,7 +14,7 @@ export type IpHistoryEntry = {
 };
 
 const FILE = path.join(process.cwd(), ".vpn-ip-history.json");
-const MAX = 300;
+const MAX = 5;
 
 function read(): IpHistoryEntry[] {
   try {
