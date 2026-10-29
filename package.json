@@ -2,14 +2,10 @@
   "name": "vpn-nextjs",
   "version": "1.2.0",
   "private": true,
-  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start -p 3001",
-    "electron-dev": "electron .",
-    "electron-build": "next build && electron-builder --win nsis",
-    "dist": "npm run electron-build"
+    "start": "next start -p 3001"
   },
   "dependencies": {
     "next": "14.2.5",
@@ -19,8 +15,6 @@
   "devDependencies": {
     "@types/node": "^20.12.0",
     "@types/react": "^18.3.3",
-    "typescript": "^5.4.5",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "typescript": "^5.4.5"
   }
 }
