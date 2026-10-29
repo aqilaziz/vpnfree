@@ -35,6 +35,48 @@ export async function getPublicIp(): Promise<string | null> {
   return null;
 }
 
+export type GeoInfo = {
+  country: string;
+  countryCode: string;
+  city: string;
+  region: string;
+  flag: string;
+  label: string;
+};
+
+export async function getGeo(ip: string): Promise<GeoInfo | null> {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch(`https://ipwho.is/${ip}`, {
+      signal: ctrl.signal,
+      cache: "no-store",
+    });
+    clearTimeout(t);
+    const j = await r.json();
+    if (!j.success) return null;
+    const flag = j.flag?.emoji ?? "";
+    const city = j.city ?? "";
+    const country = j.country ?? "";
+    const label =
+      city && country
+        ? `${flag} ${city}, ${country}`
+        : flag
+          ? `${flag} ${country}`
+          : country;
+    return {
+      country,
+      countryCode: j.country_code ?? "",
+      city,
+      region: j.region ?? "",
+      flag,
+      label: label.trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Ganti IP via Cloudflare WARP.
 // Nama service yang BENAR di versi consumer: "CloudflareWARP" (bukan "warp-svc").
 // Metode: warp-cli disconnect -> rotate-keys -> connect, agar sesi egress dibuat ulang.

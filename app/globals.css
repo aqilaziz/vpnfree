@@ -103,3 +103,55 @@ small {
   flex-wrap: wrap;
   gap: 12px;
 }
+
+.hist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.hist-item {
+  background: var(--bg-hist);
+  border: 1px solid var(--border-hist);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.hist-badge.ganti {
+  background: #16a34a;
+  color: #fff;
+}
+.hist-badge.sama {
+  background: #ef4444;
+  color: #fff;
+}
+.hist-table {
+  margin-top: 8px;
+  border: 1px solid var(--border-hist);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.hist-row {
+  display: flex;
+}
+.hist-row > span {
+  flex: 1;
+  padding: 6px 10px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+}
+.hist-row > span + span {
+  border-left: 1px solid var(--border-hist);
+}
+.hist-head {
+  background: var(--bg-badge);
+  font-weight: 700;
+}
+.hist-loc > span {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.hist-clock {
+  display: block;
+  margin-top: 4px;
+}
