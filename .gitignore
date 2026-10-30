@@ -8,3 +8,6 @@ configs/*.key
 .DS_Store
 Thumbs.db
 
+
+# Riwayat IP lokal (data runtime, bukan kode)
+.vpn-ip-history.json
