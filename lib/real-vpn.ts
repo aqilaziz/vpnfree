@@ -99,10 +99,44 @@ export async function getCfTrace(): Promise<{ warp?: string }> {
 
 // Ganti IP via Cloudflare WARP.
 // Nama service yang BENAR di versi consumer: "CloudflareWARP" (bukan "warp-svc").
-// Metode: warp-cli disconnect -> rotate-keys -> connect, agar sesi egress dibuat ulang.
-// Kalau rotate-keys gagal (butuh admin), fallback ke disconnect/connect biasa.
+// Metode lama (disconnect -> rotate-keys -> connect) TIDAK efektif: rotate-keys
+// hanya mengganti keypair tapi tetap memakai REGISTRASI (identitas perangkat) yang
+// sama, sehingga Cloudflare memberi IP dari pool yang sama -> IP sering tidak berubah.
+// Metode baru: reset registrasi (registration delete + new) = identitas perangkat
+// baru -> IP egress baru. Akun Free tanpa license key aman di-reset; kalau ada
+// license key tersimpan, dipulihkan otomatis setelah registrasi baru.
 const WARP_CLI =
   '"C:\\Program Files\\Cloudflare\\Cloudflare WARP\\warp-cli.exe"';
+
+// Ambil IPv4 publik saja. Penting: provider IP default kadang mengembalikan alamat
+// IPv6 (mis. 2a09:bac5:...) yang BERBEDA dari IPv4 WARP (104.28.x.x). Kalau dua-duanya
+// dibandingkan, IP terlihat "berubah" padahal tidak. Jadi sebelum & sesudah harus
+// diukur dengan cara yang sama: IPv4.
+export async function getPublicIpV4(): Promise<string | null> {
+  for (const url of [
+    "https://api.ipify.org",
+    "https://api-ipv4.ip.sb/ip",
+    "https://v4.ident.me",
+  ]) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      // @ts-expect-error — 'family' didukung Node fetch (undici) untuk pin IPv4
+      const r = await fetch(url, { signal: ctrl.signal, cache: "no-store", family: 4 });
+      clearTimeout(t);
+      const txt = (await r.text()).trim();
+      if (/^\d+\.\d+\.\d+\.\d+$/.test(txt)) return txt;
+    } catch {}
+  }
+  return null;
+}
+
+// Baca license key aktif dari "warp-cli registration show" (untuk pemulihan pasca-reset).
+async function getWarpLicense(): Promise<string | null> {
+  const r = await sh(`${WARP_CLI} registration show`, 15000);
+  const m = (r.stdout || "").match(/License:\s*([A-Za-z0-9-]+)/);
+  return m ? m[1] : null;
+}
 
 export async function reconnectWarp(): Promise<{
   ok: boolean;
@@ -111,7 +145,7 @@ export async function reconnectWarp(): Promise<{
   changed: boolean;
   detail: string;
 }> {
-  const before = await getPublicIp();
+  const before = await getPublicIpV4();
   const steps: string[] = [`IP awal: ${before ?? "?"}`];
 
   // 1. Disconnect agar sesi egress lama dilepas
@@ -121,28 +155,42 @@ export async function reconnectWarp(): Promise<{
   );
   await new Promise((x) => setTimeout(x, 3000));
 
-  // 2. Buat keypair sesi baru (identitas sesi baru -> peluang IP baru lebih besar).
-  //    Perintah ini TIDAK menghapus registrasi akun, hanya rotasi kunci tunnel.
-  const rot = await sh(`${WARP_CLI} tunnel rotate-keys`, 25000);
+  // 2. Simpan license key (kalau ada) supaya akun Plus tidak hilang setelah reset.
+  const lic = await getWarpLicense();
+  steps.push("license tersimpan: " + (lic ? "ya" : "tidak (Free)"));
+
+  // 3. RESET REGISTRASI = identitas perangkat baru -> pool IP baru.
+  //    Ini kunci perbaikan: rotate-keys saja tidak mengubah IP karena registrasi tetap.
+  const del = await sh(`${WARP_CLI} registration delete`, 25000);
   steps.push(
-    "rotate-keys: " + (rot.stdout || rot.stderr || "").trim().slice(0, 200),
+    "registration delete: " + (del.stdout || del.stderr || "").trim().slice(0, 200),
   );
   await new Promise((x) => setTimeout(x, 2000));
+  const nw = await sh(`${WARP_CLI} --accept-tos registration new`, 30000);
+  steps.push(
+    "registration new: " + (nw.stdout || nw.stderr || "").trim().slice(0, 200),
+  );
 
-  // 3. Connect lagi
+  // 4. Pulihkan license key bila tadi ada.
+  if (lic) {
+    const back = await sh(`${WARP_CLI} registration license ${lic}`, 25000);
+    steps.push(
+      "license dipulihkan: " + (back.stdout || back.stderr || "").trim().slice(0, 120),
+    );
+  }
+
+  // 5. Connect lagi
   const conn = await sh(`${WARP_CLI} connect`, 25000);
   steps.push(
     "connect: " + (conn.stdout || conn.stderr || "").trim().slice(0, 200),
   );
 
-  // 4. Tunggu IP stabil DAN berubah (polling max ~40 detik)
-  //    Sebelum: `if (after) break` — berhenti begitu IP terbaca, padahal
-  //    bisa jadi masih IP lama (WARP belum selesai). Sekarang tunggu sampai
-  //    IP benar-benar berbeda dari IP awal.
+  // 6. Tunggu IP IPv4 stabil DAN berubah (polling max ~60 detik).
+  //    Reset registrasi butuh beberapa detik sampai tunnel naik kembali.
   let after: string | null = null;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 12; i++) {
     await new Promise((x) => setTimeout(x, 5000));
-    after = await getPublicIp();
+    after = await getPublicIpV4();
     if (after && after !== before) break;
   }
   steps.push(`IP akhir: ${after ?? "?"}`);
@@ -176,6 +224,6 @@ export async function reconnectWarp(): Promise<{
       all +
       (changed
         ? ` | ✅ IP BERUBAH ${before} -> ${after}`
-        : " | IP masih sama — WARP kadang memberi IP yang sama. Coba klik lagi, atau reset registrasi (warp-cli registration delete + new) untuk identitas baru."),
+        : " | IP masih sama — pool WARP region-mu sempit. Coba lagi 1-2x; kalau tetap sama, satu-satunya cara andal adalah pindah lokasi keluar (VPN dengan pilihan server, bukan WARP)."),
   };
 }
