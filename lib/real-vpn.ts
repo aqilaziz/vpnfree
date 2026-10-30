@@ -77,6 +77,26 @@ export async function getGeo(ip: string): Promise<GeoInfo | null> {
   }
 }
 
+// Cek status WARP langsung dari endpoint trace Cloudflare (cdn-cgi/trace).
+// Return: { warp: "on" | "off" } atau {} kalau gagal.
+export async function getCfTrace(): Promise<{ warp?: string }> {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch("https://www.cloudflare.com/cdn-cgi/trace", {
+      signal: ctrl.signal,
+      cache: "no-store",
+    });
+    clearTimeout(t);
+    if (!r.ok) return {};
+    const txt = await r.text();
+    const m = txt.match(/^warp=(.*)$/m);
+    return m ? { warp: m[1].trim() } : {};
+  } catch {
+    return {};
+  }
+}
+
 // Ganti IP via Cloudflare WARP.
 // Nama service yang BENAR di versi consumer: "CloudflareWARP" (bukan "warp-svc").
 // Metode: warp-cli disconnect -> rotate-keys -> connect, agar sesi egress dibuat ulang.
@@ -115,12 +135,15 @@ export async function reconnectWarp(): Promise<{
     "connect: " + (conn.stdout || conn.stderr || "").trim().slice(0, 200),
   );
 
-  // 4. Tunggu IP stabil (polling max ~40 detik)
+  // 4. Tunggu IP stabil DAN berubah (polling max ~40 detik)
+  //    Sebelum: `if (after) break` — berhenti begitu IP terbaca, padahal
+  //    bisa jadi masih IP lama (WARP belum selesai). Sekarang tunggu sampai
+  //    IP benar-benar berbeda dari IP awal.
   let after: string | null = null;
   for (let i = 0; i < 8; i++) {
     await new Promise((x) => setTimeout(x, 5000));
     after = await getPublicIp();
-    if (after) break;
+    if (after && after !== before) break;
   }
   steps.push(`IP akhir: ${after ?? "?"}`);
 
