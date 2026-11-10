@@ -122,7 +122,11 @@ export async function getPublicIpV4(): Promise<string | null> {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8000);
       // @ts-expect-error — 'family' didukung Node fetch (undici) untuk pin IPv4
-      const r = await fetch(url, { signal: ctrl.signal, cache: "no-store", family: 4 });
+      const r = await fetch(url, {
+        signal: ctrl.signal,
+        cache: "no-store",
+        family: 4,
+      });
       clearTimeout(t);
       const txt = (await r.text()).trim();
       if (/^\d+\.\d+\.\d+\.\d+$/.test(txt)) return txt;
@@ -163,7 +167,8 @@ export async function reconnectWarp(): Promise<{
   //    Ini kunci perbaikan: rotate-keys saja tidak mengubah IP karena registrasi tetap.
   const del = await sh(`${WARP_CLI} registration delete`, 25000);
   steps.push(
-    "registration delete: " + (del.stdout || del.stderr || "").trim().slice(0, 200),
+    "registration delete: " +
+      (del.stdout || del.stderr || "").trim().slice(0, 200),
   );
   await new Promise((x) => setTimeout(x, 2000));
   const nw = await sh(`${WARP_CLI} --accept-tos registration new`, 30000);
@@ -175,7 +180,8 @@ export async function reconnectWarp(): Promise<{
   if (lic) {
     const back = await sh(`${WARP_CLI} registration license ${lic}`, 25000);
     steps.push(
-      "license dipulihkan: " + (back.stdout || back.stderr || "").trim().slice(0, 120),
+      "license dipulihkan: " +
+        (back.stdout || back.stderr || "").trim().slice(0, 120),
     );
   }
 

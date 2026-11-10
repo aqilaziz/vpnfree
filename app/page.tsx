@@ -13,6 +13,13 @@ type GeoInfo = {
   label: string;
 };
 
+type TorStatus = {
+  running: boolean;
+  egressIp: string | null;
+  version: string | null;
+  stemInstalled: boolean;
+};
+
 type HistEntry = {
   ip: string;
   before: string | null;
@@ -74,6 +81,8 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<HistEntry[]>([]);
   const [now, setNow] = useState<number>(() => Date.now());
+  const [torInfo, setTorInfo] = useState<TorStatus | null>(null);
+  const [torLoading, setTorLoading] = useState(false);
 
   const loadIp = async () => {
     try {
@@ -152,8 +161,51 @@ export default function Page() {
     setLoading(false);
   };
 
+  const loadTor = async () => {
+    try {
+      const d = await (await fetch("/api/tor-status")).json();
+      setTorInfo({
+        running: !!d.running,
+        egressIp: d.egressIp ?? null,
+        version: d.version ?? null,
+        stemInstalled: !!d.stemInstalled,
+      });
+    } catch {}
+  };
+
+  const rotateTor = async () => {
+    setTorLoading(true);
+    try {
+      const geoBefore = geo;
+      const r = await fetch("/api/tor-rotate", { method: "POST" });
+      const data = await r.json();
+      if (data.after) {
+        setMyIp(data.after);
+        setIpCloudflare(false);
+        setIpInfo(
+          data.changed
+            ? `IP baru via TOR — sebelumnya ${data.before}`
+            : `Tor: ${data.detail ?? "IP masih sama"}`,
+        );
+        pushHistory({
+          ip: data.after,
+          before: data.before ?? null,
+          changed: !!data.changed,
+          at: Date.now(),
+          geo: null,
+          geoBefore,
+        });
+      } else if (data.detail) {
+        setIpInfo(`Tor: ${data.detail}`);
+      }
+      loadTor();
+    } catch {}
+    setTorLoading(false);
+  };
+
   useEffect(() => {
     loadIp();
+    loadTor();
   }, []);
 
   useEffect(() => {
@@ -201,6 +253,29 @@ export default function Page() {
           </button>
           <button onClick={rotateIp} disabled={loading}>
             {loading ? "Mengganti IP..." : "🔄 Ganti IP"}
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>🧅 Tor — Ganti IP via Exit Node</h3>
+        <p>
+          <small>
+            {torInfo === null
+              ? "Cek status Tor..."
+              : !torInfo.stemInstalled
+                ? "⚠️ Stem (Python) belum terpasang — jalankan: pip install stem"
+                : torInfo.running
+                  ? `Tor aktif${torInfo.version ? ` (${torInfo.version.split(" ").slice(0, 3).join(" ")})` : ""}${torInfo.egressIp ? ` • IP keluar saat ini: ${torInfo.egressIp}` : ""}`
+                  : "Tor belum jalan — tombol di bawah akan menyalakannya otomatis."}
+          </small>
+        </p>
+        <div className="row">
+          <button onClick={rotateTor} disabled={loading || torLoading}>
+            {torLoading ? "Mengganti IP Tor..." : "🧅 Ganti IP via Tor"}
+          </button>
+          <button onClick={loadTor} disabled={torLoading}>
+            Refresh Status Tor
           </button>
         </div>
       </div>
