@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Ganti IP - Cloudflare WARP",
+  title: "vpnfree",
   description: "Ganti IP publik via Cloudflare WARP",
 };
 
