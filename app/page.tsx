@@ -169,7 +169,7 @@ export default function Page() {
     <div className="container">
       <div className="header-bar">
         <div>
-          <h1 style={{ margin: 0 }}>🔄 Ganti IP</h1>
+          <h1 style={{ margin: 0 }}>vpnfree</h1>
           <p style={{ margin: "4px 0 0" }}>
             <small>
               Ganti IP publik via Cloudflare WARP. Klik tombol untuk dapat IP
